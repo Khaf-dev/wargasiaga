@@ -4,34 +4,31 @@ from contextlib import asynccontextmanager
 
 from app.core.config import settings
 from app.core.firebase import initialize_firebase_app
+from app.api import users as users_api
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Code to run on startup
     print("Starting up...")
+    print(f"CORS allowed origins: {settings.CORS_ORIGIN}")  # ← log untuk debug
     initialize_firebase_app()
     yield
-    # Code to run on shutdown
     print("Shutting down...")
 
 app = FastAPI(lifespan=lifespan, title="WargaSiaga API")
 
-# Setup CORS
-if settings.CORS_ORIGIN:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[settings.CORS_ORIGIN],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+# CORS: split by comma kalau ada multiple origins
+allowed_origins = [origin.strip() for origin in settings.CORS_ORIGIN.split(",")]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/health", tags=["Utilities"])
 async def health_check():
-    """Endpoint untuk cek status API."""
     return {"status": "ok", "environment": settings.ENVIRONMENT}
 
-# TODO: Nanti kita include router dari api/ di sini
-# from app.api import users, incidents
-# app.include_router(users.router, prefix="/api/v1")
-# app.include_router(incidents.router, prefix="/api/v1")
+app.include_router(users_api.router, prefix="/api/v1")
