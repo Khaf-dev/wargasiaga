@@ -9,6 +9,9 @@ class Location(BaseModel):
 class OnboardingRequest(BaseModel):
     home_location: Location
 
+class FCMTokenUpdate(BaseModel):
+    fcm_token: str | None = Field(None, description="Token FCM perangkat user")
+
 class UserBase(BaseModel):
     full_name: str
     email: str | None = None

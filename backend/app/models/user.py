@@ -17,7 +17,7 @@ class User(Base, UUIDMixin, TimestampMixin):
     full_name: Mapped[str]
     email: Mapped[str | None] = mapped_column(unique=True)
     phone: Mapped[str | None]
-    role: Mapped[UserRole] = mapped_column(SAEnum(UserRole, name="user_role"), default=UserRole.STRANGER)
+    role: Mapped[UserRole] = mapped_column(SAEnum(UserRole, name="user_role", values_callable=lambda x: [e.value for e in x]), default=UserRole.STRANGER)
     
     rw_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("neighborhood_zones.id"))
     rt_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("neighborhood_zones.id"))

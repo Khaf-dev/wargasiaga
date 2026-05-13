@@ -1,7 +1,7 @@
 import { initializeApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
-// getMessaging dihapus, akan ditambahkan nanti saat setup FCM
+import { getMessaging, isSupported, type Messaging } from "firebase/messaging";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -16,5 +16,20 @@ const app: FirebaseApp = initializeApp(firebaseConfig);
 
 export const auth: Auth = getAuth(app);
 export const storage: FirebaseStorage = getStorage(app);
+
+// Inisialisasi Messaging secara asynchronous dan aman
+export const getMessagingInstance = async (): Promise<Messaging | null> => {
+  try {
+    const supported = await isSupported();
+    if (supported) {
+      return getMessaging(app);
+    }
+    console.warn("Firebase Messaging tidak didukung di browser ini.");
+    return null;
+  } catch (error) {
+    console.error("Gagal mengecek dukungan Firebase Messaging:", error);
+    return null;
+  }
+};
 
 export default app;

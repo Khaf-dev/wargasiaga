@@ -16,7 +16,7 @@ class Incident(Base, UUIDMixin, TimestampMixin):
     ai_classification: Mapped[dict | None] = mapped_column(JSONB)
     ai_summary: Mapped[str | None]
     human_address: Mapped[str | None]
-    status: Mapped[IncidentStatus] = mapped_column(SAEnum(IncidentStatus, name="incident_status"), default=IncidentStatus.ACTIVE)
+    status: Mapped[IncidentStatus] = mapped_column(SAEnum(IncidentStatus, name="incident_status", native_enum=False), default=IncidentStatus.ACTIVE)
     rw_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("neighborhood_zones.id"))
     rt_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("neighborhood_zones.id"))
     is_reporter_stranger: Mapped[bool] = mapped_column(default=False)

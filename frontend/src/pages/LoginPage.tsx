@@ -9,6 +9,11 @@ import { FullPageLoader } from '@/components/ui/Loader';
 export default function LoginPage() {
   const { firebaseUser, isLoading } = useAuthStore();
 
+  console.log(' Loginpage render:', {
+    firebaseUser: firebaseUser?.email,
+    isLoading
+  });
+
   const handleLogin = async () => {
     try {
       await signInWithGoogle();

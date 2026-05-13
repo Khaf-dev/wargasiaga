@@ -1,32 +1,125 @@
+// frontend/src/pages/HomePage.tsx
 import { motion } from 'framer-motion';
-import { signOutUser } from '@/services/auth';
 import { useAuthStore } from '@/store/authStore';
 import { LogOut } from 'lucide-react';
+import type { UserRole } from '@/types/user';
+import { PanicButton } from '@/components/panic/PanicButton';
+import { useGeolocation } from '@/hooks/useGeolocation';
+import { useAudioRecorder } from '@/hooks/useAudioRecorder';
+import { triggerPanic } from '@/services/incident';
+import { toast } from 'sonner';
+import { useEffect, useRef } from 'react';
+
+const RoleBadge = ({ role }: { role: UserRole }) => {
+  const styles = {
+    WARGA: "bg-green-100 text-green-800",
+    RT: "bg-yellow-100 text-yellow-800",
+    RW: "bg-yellow-100 text-yellow-800",
+    STRANGER: "bg-slate-200 text-slate-700",
+  };
+  return (
+    <span className={`px-2.5 py-0.5 text-sm font-medium rounded-full ${styles[role]}`}>
+      {role}
+    </span>
+  );
+};
 
 export default function HomePage() {
-  const { firebaseUser } = useAuthStore();
+  const { userProfile, logout } = useAuthStore();
+  const { location, getGeolocation } = useGeolocation();
+  const { audioBlob, startRecording, resetAudioBlob } = useAudioRecorder(10000);
+
+  const isSendingRef = useRef(false);
+
+  useEffect(() => {
+    getGeolocation();
+  }, [getGeolocation]);
+
+  const handlePanic = async () => {
+    if (isSendingRef.current) return;
+
+    toast.info("Merekam audio selama 10 detik...");
+    try {
+      await startRecording();
+    } catch (error) {
+      toast.error("Gagal memulai laporan: Izin mikrofon ditolak");
+    }
+  };
+
+  useEffect(() => {
+    if (!audioBlob || isSendingRef.current) return;
+
+    const sendPanicReport = async () => {
+      if (!location) {
+        toast.error("Lokasi tidak ditemukan. Laporan tidak dapat dikirim.");
+        resetAudioBlob();
+        return;
+      }
+
+      if (!userProfile) return;
+
+      isSendingRef.current = true;
+
+      const toastId = toast.loading("Mengirim laporan darurat...");
+
+      try {
+        await triggerPanic({
+          location,
+          audioBlob,
+          userId: userProfile.id,
+        });
+        toast.success("Laporan berhasil dikirim! Bantuan sedang dikoordinasikan.", { id: toastId });
+      } catch (error) {
+        toast.error("Gagal mengirim laporan. Periksa koneksi Anda.", { id: toastId });
+      } finally {
+        isSendingRef.current = false;
+        resetAudioBlob();
+      }
+    };
+
+    sendPanicReport();
+  }, [audioBlob, location, userProfile, resetAudioBlob]); // Dependency array di-update sesuai best practice React
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 p-4">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 p-4 pb-32">
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-md p-8 bg-white rounded-card shadow-card text-center"
+        className="w-full max-w-md p-8 bg-white rounded-card shadow-card text-center relative z-10"
       >
-        <h1 className="text-2xl font-bold text-navy-900 mb-2">Selamat Datang!</h1>
+        <div className="flex items-center justify-center gap-4 mb-2">
+          <h1 className="text-2xl font-bold text-navy-900">Beranda</h1>
+          {userProfile && <RoleBadge role={userProfile.role} />}
+        </div>
+
         <p className="text-gray-600 mb-6">
-          Anda masuk sebagai <span className="font-semibold">{firebaseUser?.displayName}</span>
+          Selamat datang, <span className="font-semibold">{userProfile?.full_name}</span>!
         </p>
+
+        {userProfile?.is_verified && (
+          <div className="p-3 bg-green-50 rounded-lg text-sm text-green-800 mb-6 font-medium">
+            ✅ Anda telah terverifikasi sebagai {userProfile.role}
+          </div>
+        )}
+
+        {/* FIX UI: Menghilangkan div min-h-screen yang redundant di dalam card */}
+        <div className="p-4 mb-6">
+            <p className="text-sm text-gray-500">Tekan tombol di bawah saat keadaan darurat.</p>
+        </div>
+
         <motion.button
-          onClick={signOutUser}
+          onClick={logout}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
-          className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-emergency text-white font-semibold rounded-full shadow-md hover:bg-red-700 transition-colors"
+          className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-slate-200 text-slate-700 font-semibold rounded-full shadow-sm hover:bg-slate-300 transition-colors"
         >
           <LogOut size={18} />
           Keluar
         </motion.button>
       </motion.div>
+
+      {/* PanicButton di luar card agar posisinya fixed di bottom screen */}
+      <PanicButton onLongPressTrigger={handlePanic} />
     </div>
   );
 }
