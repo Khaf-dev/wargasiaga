@@ -1,3 +1,6 @@
+// frontend/src/services/user.ts
+// BUG FIX: 'dcm_token' → 'fcm_token' (typo di existing code)
+// Backend users.py mengecek payload.fcm_token, bukan dcm_token
 import api from '@/lib/api';
 import type { UserResponse, Location, OnboardingResponse } from '@/types/user';
 
@@ -13,6 +16,7 @@ export const onboardUser = async (homeLocation: Location): Promise<OnboardingRes
 };
 
 export const updateFCMToken = async (token: string | null) => {
-  const { data } = await api.patch('/users/me/fcm-token', { dcm_token: token });
+  // FIX: was 'dcm_token' (typo) — backend expects 'fcm_token'
+  const { data } = await api.patch('/users/me/fcm-token', { fcm_token: token });
   return data;
-}
+};
