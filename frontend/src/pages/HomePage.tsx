@@ -4,7 +4,7 @@ import { useAuthStore } from '@/store/authStore';
 import { LogOut } from 'lucide-react';
 import type { UserRole } from '@/types/user';
 import { PanicButton } from '@/components/panic/PanicButton';
-import { useGeolocation } from '@/hooks/useGeolocation';
+import { useGpsTracking } from '@/hooks/useGpsTracking';
 import { useAudioRecorder } from '@/hooks/useAudioRecorder';
 import { triggerPanic } from '@/services/incident';
 import { toast } from 'sonner';
@@ -26,14 +26,14 @@ const RoleBadge = ({ role }: { role: UserRole }) => {
 
 export default function HomePage() {
   const { userProfile, logout } = useAuthStore();
-  const { location, getGeolocation } = useGeolocation();
+  const { location, requestPermission } = useGpsTracking();
   const { audioBlob, startRecording, resetAudioBlob } = useAudioRecorder(10000);
 
   const isSendingRef = useRef(false);
 
   useEffect(() => {
-    getGeolocation();
-  }, [getGeolocation]);
+    requestPermission();
+  }, [requestPermission]);
 
   const handlePanic = async () => {
     if (isSendingRef.current) return;
@@ -66,7 +66,7 @@ export default function HomePage() {
         await triggerPanic({
           location,
           audioBlob,
-          userId: userProfile.id,
+          // userId: userProfile.id, <== fungsi ini sebenernya harus di hapus karena kita sudah pakai Firebase Auth API untuk handle auth di backend, jadi backend bisa langsung ambil UID dari token tanpa perlu dikirim dari client. Tapi untuk backward compatibility kita biarkan dulu, nanti di refactor di Phase 4.3b.
         });
         toast.success("Laporan berhasil dikirim! Bantuan sedang dikoordinasikan.", { id: toastId });
       } catch (error) {

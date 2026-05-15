@@ -1,4 +1,6 @@
 // frontend/src/hooks/useGeolocation.ts
+// Hook untuk on-demand GPS capture (dipakai HomePage untuk panic button).
+// On-demand = user harus klik tombol, BUKAN auto-prompt.
 import { useState, useCallback } from 'react';
 import type { Location } from '@/types/user';
 
@@ -31,7 +33,7 @@ export const useGeolocation = (): GeolocationState => {
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
-  },[]);
+  }, []);
 
   return { location, error, isLoading, getGeolocation };
 };
