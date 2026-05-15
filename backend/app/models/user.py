@@ -1,14 +1,18 @@
 import uuid
+from typing import List
 from sqlalchemy import String, Boolean, DECIMAL, Enum as SAEnum, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from geoalchemy2.types import Geography
 from app.db.base import Base, UUIDMixin, TimestampMixin
 from app.db.enums import UserRole
 
-# Forward declaration untuk NeighborhoodZone
+# Forward declaration untuk type hinting
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .zone import NeighborhoodZone
+    from .incident import Incident
+    from .incident_response import IncidentResponse
+
 
 class User(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "users"
@@ -17,7 +21,10 @@ class User(Base, UUIDMixin, TimestampMixin):
     full_name: Mapped[str]
     email: Mapped[str | None] = mapped_column(unique=True)
     phone: Mapped[str | None]
-    role: Mapped[UserRole] = mapped_column(SAEnum(UserRole, name="user_role", values_callable=lambda x: [e.value for e in x]), default=UserRole.STRANGER)
+    role: Mapped[UserRole] = mapped_column(
+        SAEnum(UserRole, name="user_role", values_callable=lambda x: [e.value for e in x]),
+        default=UserRole.STRANGER
+    )
     
     rw_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("neighborhood_zones.id"))
     rt_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("neighborhood_zones.id"))
@@ -29,7 +36,24 @@ class User(Base, UUIDMixin, TimestampMixin):
     is_verified: Mapped[bool] = mapped_column(default=False)
     fcm_token: Mapped[str | None]
     
-    rt_zone: Mapped["NeighborhoodZone | None"] = relationship(foreign_keys=[rt_id], back_populates="warga_rt")
-    rw_zone: Mapped["NeighborhoodZone | None"] = relationship(foreign_keys=[rw_id], back_populates="warga_rw")
+    # ─── Existing relationships ──────────────────────────────────────────
+    rt_zone: Mapped["NeighborhoodZone | None"] = relationship(
+        foreign_keys=[rt_id], back_populates="warga_rt"
+    )
+    rw_zone: Mapped["NeighborhoodZone | None"] = relationship(
+        foreign_keys=[rw_id], back_populates="warga_rw"
+    )
+    ketua_zone: Mapped["NeighborhoodZone | None"] = relationship(
+        back_populates="ketua", foreign_keys="NeighborhoodZone.ketua_id"
+    )
     
-    ketua_zone: Mapped["NeighborhoodZone | None"] = relationship(back_populates="ketua", foreign_keys="NeighborhoodZone.ketua_id")
+    # ─── Phase 4.2 relationships ─────────────────────────────────────────
+    # User sebagai reporter (korban) di Incident
+    incidents: Mapped[List["Incident"]] = relationship(
+        back_populates="reporter",
+        foreign_keys="Incident.reporter_id"
+    )
+    # User sebagai responder (tetangga yang join) di IncidentResponse
+    responses: Mapped[List["IncidentResponse"]] = relationship(
+        back_populates="responder"
+    )
