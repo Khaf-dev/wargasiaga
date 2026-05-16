@@ -7,8 +7,9 @@ import { ChevronLeft, MapPin, User, Users, AlertTriangle, RefreshCw } from 'luci
 import { AxiosError } from 'axios';
 import IncidentMap from '@/components/map/IncidentMap';
 import { useGpsTracking } from '@/hooks/useGpsTracking';
+import AudioPlayer from '@/components/incident/AudioPlayer';
+import ResponderActions from '@/components/incident/ResponderActions';
 
-// Helper function untuk format waktu "X yang lalu"
 const formatTimeAgo = (isoString: string): string => {
   const date = new Date(isoString);
   const now = new Date();
@@ -56,7 +57,6 @@ const SkeletonLoader = () => (
 
 const GpsWarningBanner = ({ status, error, onRetry }: { status: string; error: string | null; onRetry: () => void }) => {
   if (status === 'granted' || status === 'pending') return null;
-
   return (
     <div className="rounded-xl bg-yellow-50 border-l-4 border-yellow-400 p-3 flex items-start gap-3">
       <AlertTriangle size={20} className="text-yellow-500 flex-shrink-0 mt-0.5" />
@@ -93,7 +93,8 @@ export default function IncidentMapPage() {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    // Hanya set loading true jika bukan re-fetch
+    if (!incident) setLoading(true);
     setError(null);
     try {
       const data = await getIncidentDetail(incidentId);
@@ -111,9 +112,7 @@ export default function IncidentMapPage() {
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, [incidentId]);
+  useEffect(() => { fetchData(); }, [incidentId]);
 
   if (loading) return <SkeletonLoader />;
 
@@ -163,25 +162,27 @@ export default function IncidentMapPage() {
               </div>
             </div>
           </motion.div>
-
-          {/* === MAP INTEGRATION === */}
           <GpsWarningBanner status={gpsStatus} error={gpsError} onRetry={requestPermission} />
-          <IncidentMap
-            className="h-[320px]"
-            korbanLocation={incident.location}
-            ownLocation={ownLocation}
-            responders={responderLocations}
-          />
-          {/* === END MAP INTEGRATION === */}
-
+          <IncidentMap className="h-[320px]" korbanLocation={incident.location} ownLocation={ownLocation} responders={responderLocations} />
           <div className="rounded-2xl bg-white shadow-sm p-4 space-y-3">
             <div className="flex items-start gap-3"><MapPin size={20} className="text-slate-400 mt-0.5 flex-shrink-0" /><p className="text-sm text-slate-700">{incident.human_address || `Koordinat: ${incident.location.lat.toFixed(4)}, ${incident.location.lng.toFixed(4)}`}</p></div>
             <div className="flex items-center gap-3"><User size={20} className="text-slate-400 flex-shrink-0" /><p className="text-sm text-slate-700 font-medium">{incident.reporter.full_name}<RoleBadge role={incident.reporter.role} isStranger={incident.reporter.is_stranger} /></p></div>
             <div className="flex items-center gap-3"><Users size={20} className="text-slate-400 flex-shrink-0" /><p className="text-sm text-slate-700">{respondingNeighborsCount > 0 ? `${respondingNeighborsCount} tetangga sedang merespon` : "Belum ada yang merespon"}</p></div>
             {incident.status === 'false_alarm' && (<div className="flex items-center gap-2 p-2 bg-red-50 text-red-700 text-xs font-medium rounded-lg"><AlertTriangle size={14} /><span>Laporan ini ditandai sebagai laporan palsu.</span></div>)}
           </div>
-
-          <div className="rounded-2xl bg-slate-100 p-4 text-center text-slate-500 text-sm">Tombol aksi akan tersedia di update berikutnya.</div>
+          
+          {/* === ACTION INTEGRATION === */}
+          <div className="space-y-4">
+            <AudioPlayer audioUrl={incident.audio_url} durationSec={incident.audio_duration_sec} />
+            <ResponderActions 
+              incidentId={incident.id}
+              reporterId={incident.reporter.id}
+              initialResponders={incident.responders}
+              ownLocation={ownLocation}
+              onResponseSubmitted={fetchData}
+            />
+          </div>
+          {/* === END ACTION INTEGRATION === */}
         </main>
       </div>
     </motion.div>
