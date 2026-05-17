@@ -21,6 +21,9 @@ class Settings(BaseSettings):
 
     # Gemini API Key
     GEMINI_API_KEY: str
+    
+    # Google Maps Geocoding API Key
+    GOOGLE_GEOCODING_API_KEY: str
 
     # CORS Origin
     CORS_ORIGIN: str
