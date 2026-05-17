@@ -9,6 +9,7 @@ import { useAudioRecorder } from '@/hooks/useAudioRecorder';
 import { triggerPanic } from '@/services/incident';
 import { toast } from 'sonner';
 import { useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const RoleBadge = ({ role }: { role: UserRole }) => {
   const styles = {
@@ -26,6 +27,7 @@ const RoleBadge = ({ role }: { role: UserRole }) => {
 
 export default function HomePage() {
   const { userProfile, logout } = useAuthStore();
+  const navigate = useNavigate();
   const { location, requestPermission } = useGpsTracking();
   const { audioBlob, startRecording, resetAudioBlob } = useAudioRecorder(10000);
 
@@ -63,12 +65,16 @@ export default function HomePage() {
       const toastId = toast.loading("Mengirim laporan darurat...");
 
       try {
-        await triggerPanic({
+        const data = await triggerPanic({
           location,
           audioBlob,
           // userId: userProfile.id, <== fungsi ini sebenernya harus di hapus karena kita sudah pakai Firebase Auth API untuk handle auth di backend, jadi backend bisa langsung ambil UID dari token tanpa perlu dikirim dari client. Tapi untuk backward compatibility kita biarkan dulu, nanti di refactor di Phase 4.3b.
         });
         toast.success("Laporan berhasil dikirim! Bantuan sedang dikoordinasikan.", { id: toastId });
+        // Navigate ke IncidentMapPage untuk monitor respon + AI analysis
+        if (data?.incident_id) {
+          navigate(`/incidents/${data.incident_id}`);
+        }
       } catch (error) {
         toast.error("Gagal mengirim laporan. Periksa koneksi Anda.", { id: toastId });
       } finally {
@@ -78,7 +84,7 @@ export default function HomePage() {
     };
 
     sendPanicReport();
-  }, [audioBlob, location, userProfile, resetAudioBlob]); // Dependency array di-update sesuai best practice React
+  }, [audioBlob, location, userProfile, resetAudioBlob, navigate]); // Dependency array di-update sesuai best practice React
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 p-4 pb-32">

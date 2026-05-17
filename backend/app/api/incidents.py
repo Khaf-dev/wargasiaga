@@ -7,7 +7,9 @@ from uuid import UUID
 from app.db.session import get_db
 from app.api.auth import get_current_user, FirebaseUser
 from app.services import user_service, incident_service, fcm_service
+from app.services.ai import incident_ai_orchestrator
 from app.schemas import incident as incident_schema
+from app.schemas.incident import PanicRequest
 from app.db.enums import ResponseType, IncidentStatus
 # FIX: Tambahkan import model 'Incident'
 from app.models import Incident
@@ -16,24 +18,22 @@ router = APIRouter(prefix="/incidents", tags=["Incidents"])
 
 @router.post("/panic")
 async def trigger_panic(
-    request: incident_schema.PanicRequest,
+    request: PanicRequest,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     firebase_user: FirebaseUser = Depends(get_current_user)
 ):
+    """Endpoint untuk menerima laporan panik dan men-trigger notifikasi serta proses AI."""
     # Dapatkan object user (reporter)
     user = await user_service.get_or_create_user(db, firebase_user)
     
-    # 1. Simpan insiden
+    # 1. Simpan insiden ke Database (Cepat)
     incident = await incident_service.create_incident(db, user.id, request)
     
-    # 2. Cari target tokens (10 tetangga terdekat verified + RT/RW zona)
+    # 2. Cari tetangga target notifikasi
     tokens, target_info = await incident_service.get_target_fcm_tokens(db, incident)
     
-    # DEBUG: nanti dihapus pas production
-    print(f"DEBUG: FCM Tokens ditemukan: {tokens}")
-    
-    # 3. Payload Notifikasi
+    # 3. Siapkan Payload Notifikasi FCM
     badge = "⚠️ " if incident.is_reporter_stranger else "🚨 "
     title = f"{badge}Laporan Darurat WargaSiaga"
     body = f"{user.full_name} menekan tombol panik! Bantuan dibutuhkan."
@@ -41,12 +41,23 @@ async def trigger_panic(
     fcm_data = {
         "incident_id": str(incident.id),
         "reporter_name": user.full_name,
-        "reporter_role": user.role.value,  # ✨ Phase 4.2 fix: kirim role buat IncomingPanicSheet
         "is_stranger": str(incident.is_reporter_stranger).lower()
     }
 
-    # 4. Fire and Forget via BackgroundTasks (non-blocking response)
+    # 4. Fire and Forget Notifikasi FCM via BackgroundTasks
     background_tasks.add_task(fcm_service.send_multicast_async, tokens, title, body, fcm_data)
+    
+    # 5. Fire and Forget Orkestrasi AI via BackgroundTasks (Phase 5.1)
+    # Kita ekstrak lat/lng dari request karena incident.location di ORM adalah WKBElement.
+    if request.audio_url:
+        background_tasks.add_task(
+            incident_ai_orchestrator.process_panic_ai,
+            incident_id=incident.id,
+            audio_url=str(request.audio_url), # Pastikan dikirim sebagai string
+            lat=request.location.lat,
+            lng=request.location.lng,
+            reporter_name=user.full_name,
+        )
     
     return {
         "message": "Laporan panik diterima. Menghubungi tetangga.", 

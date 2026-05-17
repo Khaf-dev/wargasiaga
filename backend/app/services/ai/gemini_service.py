@@ -2,6 +2,7 @@ import logging
 import httpx
 import json
 from google import genai
+from google.genai import types
 from app.core.config import settings
 
 # Inisialisasi logger untuk modul ini
@@ -67,9 +68,12 @@ Panduan urgency:
 - LOW: kemungkinan salah picu (suara biasa, sepi, suara latar belakang)
 """
         
+        # Buat Part dari audio bytes (format google-genai 2.x)
+        audio_part = types.Part.from_bytes(data=audio_bytes, mime_type='audio/webm')
+        
         gemini_response = await _client.aio.models.generate_content(
             model=MODEL_NAME,
-            contents=[prompt, {"mime_type": "audio/webm", "data": audio_bytes}]
+            contents=[prompt, audio_part]
         )
 
         # Langkah 3: Parsing JSON response dengan fallback
