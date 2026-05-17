@@ -195,12 +195,40 @@ async def create_response(
         db.add(new_response)
         await db.commit()
         await db.refresh(new_response)
-    except IntegrityError:
+    except IntegrityError as e:
         await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Anda sudah pernah merespon insiden ini dengan tipe yang sama"
-        )
+    
+        # Cek SQLSTATE code untuk diferensiasi error
+        # 23505 = unique_violation (legitimate duplicate)
+        # 23514 = check_violation (bad enum value, dll)
+        # 23503 = foreign_key_violation
+        sqlstate = getattr(e.orig, 'sqlstate', None) if hasattr(e, 'orig') else None
+    
+        if sqlstate == '23505':
+            # Duplicate response - user sudah pernah respond
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Anda sudah pernah merespon insiden ini dengan tipe yang sama."
+            )
+        elif sqlstate == '23514':
+            # CHECK constraint violation (e.g. bad enum value)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Data tidak valid: {e.orig}"
+            )
+        elif sqlstate == '23503':
+            # Foreign key violation
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Referensi data tidak valid (insiden atau user tidak ditemukan)."
+            )
+        else:
+            # Unknown integrity error - log untuk debugging
+            print(f"Unexpected IntegrityError sqlstate={sqlstate}: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Terjadi kesalahan database. Silakan coba lagi."
+            )
         
     # --- Anti-Prank Logic (Phase 6 Prep) ------------------------------------------
     if response_type_enum == ResponseType.FALSE_ALARM:
@@ -254,4 +282,4 @@ async def get_responders_for_notification(
     responder_tokens = result.scalars().all()
     tokens.update(t for t in responder_tokens if t)
     
-    return list
+    return list(tokens)

@@ -9,6 +9,8 @@ import IncidentMap from '@/components/map/IncidentMap';
 import { useGpsTracking } from '@/hooks/useGpsTracking';
 import AudioPlayer from '@/components/incident/AudioPlayer';
 import ResponderActions from '@/components/incident/ResponderActions';
+import { useIncidentRealtime } from '@/hooks/useIncidentRealtime';
+import { toast } from 'sonner';
 
 const formatTimeAgo = (isoString: string): string => {
   const date = new Date(isoString);
@@ -77,6 +79,34 @@ const GpsWarningBanner = ({ status, error, onRetry }: { status: string; error: s
   );
 };
 
+type ConnectionStatus = 'idle' | 'subscribing' | 'connected' | 'disconnected' | 'error';
+type ActiveConnectionStatus = Exclude<ConnectionStatus, 'idle'>;
+
+const ConnectionIndicator = ({ status }: { status: ConnectionStatus }) => {
+  const indicatorStyles: Record<ActiveConnectionStatus, { bg: string; text: string }> = {
+    connected: { bg: 'bg-green-500', text: 'Live' },
+    subscribing: { bg: 'bg-yellow-500', text: 'Menghubungkan...' },
+    disconnected: { bg: 'bg-slate-400', text: 'Offline' },
+    error: { bg: 'bg-red-500', text: 'Error' },
+  };
+
+  if (status === 'idle') return null;
+
+  // Setelah guard di atas, TypeScript narrow status jadi ActiveConnectionStatus
+  const { bg, text } = indicatorStyles[status];
+
+  return (
+    <div className="flex items-center gap-1.5 text-xs text-slate-500">
+      <motion.div
+        className={`w-2 h-2 rounded-full ${bg}`}
+        animate={status === 'connected' ? { scale: [1, 1.3, 1], opacity: [0.8, 1, 0.8] } : {}}
+        transition={status === 'connected' ? { duration: 1.5, repeat: Infinity } : {}}
+      />
+      <span>{text}</span>
+    </div>
+  );
+};
+
 export default function IncidentMapPage() {
   const { incidentId } = useParams<{ incidentId: string }>();
   const navigate = useNavigate();
@@ -93,7 +123,6 @@ export default function IncidentMapPage() {
       setLoading(false);
       return;
     }
-    // Hanya set loading true jika bukan re-fetch
     if (!incident) setLoading(true);
     setError(null);
     try {
@@ -113,6 +142,30 @@ export default function IncidentMapPage() {
   };
 
   useEffect(() => { fetchData(); }, [incidentId]);
+  
+const { connectionStatus } = useIncidentRealtime({
+  incidentId,
+  onResponseAdded: () => {
+    // Notif singkat, detail nama akan muncul setelah fetchData refresh
+    toast.info('👋 Ada tetangga baru yang merespon.');
+    fetchData();
+  },
+  onIncidentUpdated: (newRecord, oldRecord) => {
+    // Type narrowing: payload realtime dari Supabase berformat raw DB row
+    const newStatus = (newRecord as { status?: string })?.status;
+    const oldStatus = (oldRecord as { status?: string })?.status;
+    
+    if (oldStatus && newStatus && newStatus !== oldStatus) {
+      const statusLabels: Record<string, string> = {
+        false_alarm: '🛑 Laporan Palsu',
+        resolved: '✅ Selesai',
+        expired: '⏰ Kedaluwarsa',
+      };
+      toast.success(`Status berubah: ${statusLabels[newStatus] || newStatus}`);
+    }
+    fetchData();
+  },
+});
 
   if (loading) return <SkeletonLoader />;
 
@@ -141,14 +194,17 @@ export default function IncidentMapPage() {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-slate-50 min-h-screen">
       <div className="max-w-md mx-auto">
         <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-sm border-b border-slate-200 px-4 py-3">
-          <div className="flex items-center">
-            <motion.button onClick={() => navigate(-1)} whileTap={{ scale: 0.9 }} className="p-2 -ml-2 mr-2"><ChevronLeft size={24} className="text-slate-700" /></motion.button>
-            <div>
-              <h1 className="font-bold text-lg text-slate-900 leading-tight">🚨 Panik dari {incident.reporter.full_name}</h1>
-              <p className="text-xs text-slate-500">
-                {incident.rt_zone_number && `RT ${incident.rt_zone_number}`}{incident.rt_zone_number && incident.rw_zone_number && ' • '}{incident.rw_zone_number && `RW ${incident.rw_zone_number}`}{' • '}{formatTimeAgo(incident.created_at)}
-              </p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <motion.button onClick={() => navigate(-1)} whileTap={{ scale: 0.9 }} className="p-2 -ml-2 mr-2"><ChevronLeft size={24} className="text-slate-700" /></motion.button>
+              <div>
+                <h1 className="font-bold text-lg text-slate-900 leading-tight">🚨 Panik dari {incident.reporter.full_name}</h1>
+                <p className="text-xs text-slate-500">
+                  {incident.rt_zone_number && `RT ${incident.rt_zone_number}`}{incident.rt_zone_number && incident.rw_zone_number && ' • '}{incident.rw_zone_number && `RW ${incident.rw_zone_number}`}{' • '}{formatTimeAgo(incident.created_at)}
+                </p>
+              </div>
             </div>
+            <ConnectionIndicator status={connectionStatus} />
           </div>
         </header>
 
@@ -171,7 +227,6 @@ export default function IncidentMapPage() {
             {incident.status === 'false_alarm' && (<div className="flex items-center gap-2 p-2 bg-red-50 text-red-700 text-xs font-medium rounded-lg"><AlertTriangle size={14} /><span>Laporan ini ditandai sebagai laporan palsu.</span></div>)}
           </div>
           
-          {/* === ACTION INTEGRATION === */}
           <div className="space-y-4">
             <AudioPlayer audioUrl={incident.audio_url} durationSec={incident.audio_duration_sec} />
             <ResponderActions 
@@ -182,7 +237,6 @@ export default function IncidentMapPage() {
               onResponseSubmitted={fetchData}
             />
           </div>
-          {/* === END ACTION INTEGRATION === */}
         </main>
       </div>
     </motion.div>
