@@ -11,6 +11,7 @@ import AudioPlayer from '@/components/incident/AudioPlayer';
 import ResponderActions from '@/components/incident/ResponderActions';
 import { useIncidentRealtime } from '@/hooks/useIncidentRealtime';
 import { toast } from 'sonner';
+import VoteProgressBanner from '@/components/incident/VoteProgressBanner';
 
 const formatTimeAgo = (isoString: string): string => {
   const date = new Date(isoString);
@@ -218,6 +219,13 @@ const { connectionStatus } = useIncidentRealtime({
               </div>
             </div>
           </motion.div>
+          
+          {/* PHASE 6.2: Vote Progress Banner */}
+          <VoteProgressBanner
+            currentWeight={incident.total_vote_weight_false_alarm}
+            incidentStatus={incident.status}
+          />
+          
           <GpsWarningBanner status={gpsStatus} error={gpsError} onRetry={requestPermission} />
           <IncidentMap className="h-[320px]" korbanLocation={incident.location} ownLocation={ownLocation} responders={responderLocations} />
           <div className="rounded-2xl bg-white shadow-sm p-4 space-y-3">

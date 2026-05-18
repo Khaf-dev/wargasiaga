@@ -172,7 +172,8 @@ async def _apply_false_alarm_penalty(db: AsyncSession, reporter_id: UUID) -> dic
     
     # 2. Cek aturan 3 pelanggaran untuk STRANGER.
     if reporter.role == UserRole.STRANGER:
-        thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+        # Naive UTC untuk match column TIMESTAMP WITHOUT TIME ZONE di DB.
+        thirty_days_ago = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=30)
         false_alarm_count_stmt = select(func.count(Incident.id)).where(
             Incident.reporter_id == reporter_id,
             Incident.status == IncidentStatus.FALSE_ALARM,
@@ -264,7 +265,8 @@ async def create_response(
     # --- Anti-Prank Logic (Phase 6) ---
     if response_type_enum == ResponseType.FALSE_ALARM:
         # Hanya hitung vote yang masuk dalam 3 menit terakhir untuk validitas.
-        three_minutes_ago = datetime.now(timezone.utc) - timedelta(minutes=3)
+        # Naive UTC untuk match column TIMESTAMP WITHOUT TIME ZONE di DB.
+        three_minutes_ago = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=3)
         
         total_weight_stmt = select(func.sum(IncidentResponse.vote_weight)).where(
             IncidentResponse.incident_id == incident_id,
