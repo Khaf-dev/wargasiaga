@@ -155,7 +155,7 @@ const { connectionStatus } = useIncidentRealtime({
     // Type narrowing: payload realtime dari Supabase berformat raw DB row
     const newStatus = (newRecord as { status?: string })?.status;
     const oldStatus = (oldRecord as { status?: string })?.status;
-    
+
     if (oldStatus && newStatus && newStatus !== oldStatus) {
       const statusLabels: Record<string, string> = {
         false_alarm: '🛑 Laporan Palsu',
@@ -163,6 +163,16 @@ const { connectionStatus } = useIncidentRealtime({
         expired: '⏰ Kedaluwarsa',
       };
       toast.success(`Status berubah: ${statusLabels[newStatus] || newStatus}`);
+
+      // PHASE 6.3: Auto-redirect ke HomePage saat laporan dibatalkan via voting
+      // PHASE 6.3: Auto-redirect ke HomePage saat laporan dibatalkan via voting
+      if (newStatus === 'false_alarm') {
+        toast.info('Laporan dibatalkan oleh komunitas. Mengarahkan ke beranda...', {
+          duration: 2500,
+        });
+        // Delay 2.5 detik supaya user sempet baca toast
+        setTimeout(() => navigate('/'), 2500);
+      }
     }
     fetchData();
   },

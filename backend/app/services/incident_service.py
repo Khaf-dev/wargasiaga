@@ -126,19 +126,42 @@ async def calculate_vote_weight(user_role: UserRole, response_type: ResponseType
         case _: return 0
 
 async def get_responders_for_notification(db: AsyncSession, incident_id: UUID, exclude_user_id: UUID) -> List[str]:
-    """Mengambil FCM token dari semua partisipan insiden (reporter + responders)."""
-    incident = await db.get(Incident, incident_id, options=[selectinload(Incident.reporter)])
-    tokens = {incident.reporter.fcm_token} if incident and incident.reporter and incident.reporter.fcm_token else set()
-
-    stmt = select(User.fcm_token).join(IncidentResponse).where(
-        IncidentResponse.incident_id == incident_id,
-        User.id != exclude_user_id,
-        User.fcm_token.isnot(None)
-    )
-    result = await db.execute(stmt)
-    responder_tokens = result.scalars().all()
-    tokens.update(responder_tokens)
+    """Mengambil FCM token dari semua partisipan insiden (reporter + responders).
     
+    NOTE: Pakai explicit SELECT (bukan rely on incident.reporter relationship)
+    karena setelah multiple commit di endpoint, lazy-loaded relationships bisa
+    trigger MissingGreenlet di async session.
+    """
+    tokens: set[str] = set()
+
+    # 1. Ambil reporter FCM token via explicit JOIN (no lazy load)
+    reporter_stmt = (
+        select(User.fcm_token)
+        .join(Incident, Incident.reporter_id == User.id)
+        .where(
+            Incident.id == incident_id,
+            User.id != exclude_user_id,
+            User.fcm_token.isnot(None),
+        )
+    )
+    reporter_token = (await db.execute(reporter_stmt)).scalar_one_or_none()
+    if reporter_token:
+        tokens.add(reporter_token)
+
+    # 2. Ambil responders FCM tokens
+    responders_stmt = (
+        select(User.fcm_token)
+        .join(IncidentResponse, IncidentResponse.responder_id == User.id)
+        .where(
+            IncidentResponse.incident_id == incident_id,
+            User.id != exclude_user_id,
+            User.fcm_token.isnot(None),
+        )
+    )
+    result = await db.execute(responders_stmt)
+    responder_tokens = result.scalars().all()
+    tokens.update(t for t in responder_tokens if t)
+
     return list(tokens)
 
 # --- Fungsi Baru untuk Phase 6.1 ---
