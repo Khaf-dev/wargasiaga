@@ -57,9 +57,6 @@ export const useFCM = (isLoggedIn: boolean) => {
           console.log('[FCM] Foreground message:', payload);
 
           const data = payload.data || {};
-          const notifType = (data.type || 'info') as ActivePanicAlert['reporterRole'] extends string
-            ? 'panic_alert' | 'false_alarm' | 'resolved' | 'info'
-            : never;
           const isStranger = data.is_stranger === 'true';
           const title = payload.notification?.title || '🚨 Laporan Darurat!';
           const body = payload.notification?.body || 'Bantuan dibutuhkan.';

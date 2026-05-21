@@ -16,7 +16,7 @@ const stepVariants = {
 };
 
 export default function OnboardingPage() {
-  const { userProfile, fetchUserProfile } = useAuthStore();
+  const { userProfile, fetchUserProfile, logout } = useAuthStore();
   const navigate = useNavigate();
   const [step, setStep] = useState<OnboardingStep>('intro');
   const [location, setLocation] = useState<Location | null>(null);
@@ -58,6 +58,13 @@ export default function OnboardingPage() {
     setLocation(null);
     setOnboardResult(null);
     setStep('intro');
+  };
+
+  // PHASE 7 BUGFIX: handler logout dari onboarding biar user gak terjebak
+  // saat lokasi belum terdaftar di zona RT/RW manapun
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
   };
 
   const renderStepContent = () => {
@@ -128,11 +135,17 @@ export default function OnboardingPage() {
                 <AlertCircle size={64} className="mx-auto text-yellow-500" />
              </motion.div>
             <h1 className="text-2xl font-bold text-gray-900 mt-4">Verifikasi Belum Berhasil</h1>
-            <p className="text-gray-600 mt-2 mb-8">{onboardResult?.message}</p>
+            <p className="text-gray-600 mt-2 mb-6">{onboardResult?.message}</p>
             <div className="flex flex-col gap-3">
               <motion.button onClick={resetFlow} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="w-full py-3 bg-navy-900 text-white font-semibold rounded-full">Coba Lokasi Lain</motion.button>
-              <button disabled className="w-full py-3 bg-slate-200 text-slate-500 font-semibold rounded-full cursor-not-allowed">Hubungi RT Setempat</button>
+              {/* PHASE 7 BUGFIX: tombol keluar supaya user gak terjebak di layar ini */}
+              <motion.button onClick={handleLogout} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="w-full py-3 bg-slate-100 text-slate-600 font-semibold rounded-full border border-slate-300">
+                Keluar & Ganti Akun
+              </motion.button>
             </div>
+            <p className="text-xs text-slate-400 mt-5 leading-relaxed">
+              Lokasimu belum masuk zona RT/RW yang terdaftar. Hubungi ketua RT setempat untuk didaftarkan ke sistem.
+            </p>
           </motion.div>
         );
       default: return null;

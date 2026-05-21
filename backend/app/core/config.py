@@ -9,9 +9,13 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=BACKEND_DIR.parent / ".env", env_file_encoding='utf-8', extra='ignore')
 
     # App Environment
-    ENVIRONMENT: str = "development"
+    ENVIRONMENT: str = "development"  # production/staging/development
     DEBUG: bool = True
     LOG_LEVEL: str = "INFO"
+
+    @property
+    def is_production(self) -> bool:
+        return self.ENVIRONMENT.lower() == "production"
 
     # Supabase DB Connection
     DATABASE_URL: str
