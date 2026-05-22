@@ -6,7 +6,7 @@ from geoalchemy2 import Geometry
 
 from app.models import User, NeighborhoodZone
 from app.api.auth import FirebaseUser
-from app.schemas.user import Location
+from app.schemas.user import Location, DataDiriRequest
 from app.db.enums import UserRole
 
 async def get_or_create_user(db: AsyncSession, firebase_user: FirebaseUser) -> User:
@@ -70,5 +70,38 @@ async def onboard_user(db: AsyncSession, user_id: UUID, home_location: Location)
         .options(selectinload(User.rt_zone), selectinload(User.rw_zone))
         .where(User.id == user_id)
     )
+    final_result = await db.execute(final_query)
+    return final_result.scalar_one()
+
+
+async def update_data_diri(db: AsyncSession, user_id: UUID, data: DataDiriRequest) -> User:
+    """
+    Phase 8.4: Update data diri WARGA (Q-Data-2=a, all-or-nothing).
+    Set data_completed=True saat semua field lengkap.
+    NIK conflict (unique) di-handle di endpoint via IntegrityError.
+
+    Catatan: rt_number/rw_number disimpan sebagai info alamat manual,
+    BEDA dari rt_id/rw_id (zona UUID dari geofencing Phase 8.5).
+    """
+    update_values = {
+        "nik": data.nik,
+        "birth_place": data.birth_place,
+        "birth_date": data.birth_date,
+        "gender": data.gender,
+        "address_block": data.address_block,
+        "rt_number": data.rt_number,
+        "rw_number": data.rw_number,
+        "kelurahan": data.kelurahan,
+        "kecamatan": data.kecamatan,
+        "phone": data.phone,
+        "data_completed": True,  # semua field lengkap → tandai complete (unlock fitur)
+    }
+    update_stmt = update(User).where(User.id == user_id).values(**update_values)
+    await db.execute(update_stmt)
+    await db.commit()
+
+    # RE-QUERY untuk dapat data terbaru (konsisten dengan pattern onboard_user,
+    # hindari MissingGreenlet di async)
+    final_query = select(User).where(User.id == user_id)
     final_result = await db.execute(final_query)
     return final_result.scalar_one()

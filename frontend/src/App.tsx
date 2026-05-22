@@ -11,6 +11,7 @@ import LoginPage from '@/pages/LoginPage';
 import HomePage from '@/pages/HomePage';
 import OnboardingPage from '@/pages/OnboardingPage';
 import IncidentMapPage from '@/pages/IncidentMapPage';
+import DataDiriPage from '@/pages/DataDiriPage';
 
 // Import persistent components
 import { IncomingPanicSheet } from '@/components/panic/IncomingPanicSheet';
@@ -55,15 +56,23 @@ function App() {
         />
 
         {/* Route Baru untuk Phase 4.3a */}
-        <Route 
-          path="/incidents/:incidentId" 
+        <Route
+          path="/incidents/:incidentId"
           element={
             <ProtectedRoute>
               <IncidentMapPage />
             </ProtectedRoute>
-          } 
+          }
         />
-
+        {/* Phase 8.4: Pendataan data diri WARGA */}
+        <Route
+          path="/data-diri"
+          element={
+            <ProtectedRoute>
+              <DataDiriPage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>

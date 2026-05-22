@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import update
+from sqlalchemy.exc import IntegrityError
 from app.db.session import get_db
 from app.api.auth import get_current_user, FirebaseUser
 from app.services import user_service
@@ -49,5 +50,45 @@ async def update_fcm_token(
     stmt = update(User).where(User.id == user.id).values(fcm_token=payload.fcm_token)
     await db.execute(stmt)
     await db.commit()
-    
     return {"message": "FCM token berhasil diupdate"}
+
+
+@router.patch("/me/data-diri", response_model=user_schema.DataDiriUpdateResponse)
+async def update_my_data_diri(
+    data: user_schema.DataDiriRequest,
+    db: AsyncSession = Depends(get_db),
+    firebase_user: FirebaseUser = Depends(get_current_user)
+):
+    """
+    Phase 8.4: Pendataan data diri WARGA.
+    Optional untuk diisi, tapi kalau diisi harus lengkap (validasi Pydantic).
+    NIK unique — kalau sudah dipakai user lain, return HTTP 409.
+    """
+    user = await user_service.get_or_create_user(db, firebase_user)
+    try:
+        updated_user = await user_service.update_data_diri(db, user.id, data)
+    except IntegrityError:
+        # NIK duplikat (partial unique index uq_users_nik di DB)
+        await db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="NIK ini sudah terdaftar di akun lain. Periksa kembali NIK Anda."
+        )
+    return {
+        "data": updated_user,
+        "message": "Data diri berhasil disimpan. Terima kasih sudah melengkapi data!"
+    }
+
+
+@router.get("/me/data-diri", response_model=user_schema.DataDiriResponse)
+async def get_my_data_diri(
+    db: AsyncSession = Depends(get_db),
+    firebase_user: FirebaseUser = Depends(get_current_user)
+):
+    """
+    Phase 8.4: Ambil data diri user (untuk prefill form / edit mode).
+    Field bisa null kalau user belum pernah isi. Usia computed dari birth_date.
+    """
+    user = await user_service.get_or_create_user(db, firebase_user)
+    # DataDiriResponse pakai from_attributes — usia di-compute otomatis dari birth_date
+    return user

@@ -46,6 +46,8 @@ class User(Base, UUIDMixin, TimestampMixin):
         SAEnum(Gender, name="gender_type", values_callable=lambda x: [e.value for e in x])
     )
     address_block: Mapped[str | None]  # alamat rumah / blok
+    rt_number: Mapped[str | None]  # nomor RT input manual (beda dari rt_id zona)
+    rw_number: Mapped[str | None]  # nomor RW input manual (beda dari rw_id zona)
     kelurahan: Mapped[str | None]
     kecamatan: Mapped[str | None]
     data_completed: Mapped[bool] = mapped_column(Boolean, default=False)  # penanda kelengkapan data
