@@ -34,9 +34,13 @@ export const useFCM = (isLoggedIn: boolean) => {
         }
 
         // 2. Dapatkan FCM token
-        // Catatan: getToken butuh SW yang sudah terdaftar (dilakukan di main.tsx)
+        // OPSI C: SW yang active sekarang adalah sw.js (PWA Workbox) yang sudah
+        // import firebase-messaging-sw.js. Pass registration eksplisit supaya
+        // getToken pakai SW ini, bukan auto-register firebase-messaging-sw.js terpisah.
+        const swRegistration = await navigator.serviceWorker.ready;
         const currentToken = await getToken(messaging, {
           vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
+          serviceWorkerRegistration: swRegistration,
         });
 
         // 3. Sync token ke backend — hanya sekali per session

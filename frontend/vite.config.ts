@@ -45,6 +45,10 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff,woff2}'],
+        // OPSI C: import FCM background handler ke dalam Workbox SW (sw.js).
+        // Ini bikin 1 SW handle BOTH: PWA caching + Firebase Messaging background.
+        // firebase-messaging-sw.js TETAP ADA sebagai file, tapi di-import (bukan register terpisah).
+        importScripts: ['/firebase-messaging-sw.js'],
         // Penting: jangan intercept firebase-messaging-sw.js (untuk FCM)
         navigateFallbackDenylist: [
           /^\/firebase-messaging-sw\.js$/,
