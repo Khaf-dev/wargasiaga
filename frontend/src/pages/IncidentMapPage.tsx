@@ -12,6 +12,7 @@ import ResponderActions from '@/components/incident/ResponderActions';
 import { useIncidentRealtime } from '@/hooks/useIncidentRealtime';
 import { toast } from 'sonner';
 import VoteProgressBanner from '@/components/incident/VoteProgressBanner';
+import { useAuthStore } from '@/store/authStore';
 
 const formatTimeAgo = (isoString: string): string => {
   const date = new Date(isoString);
@@ -117,6 +118,7 @@ export default function IncidentMapPage() {
   const [error, setError] = useState<string | null>(null);
 
   const { location: ownLocation, status: gpsStatus, error: gpsError, requestPermission } = useGpsTracking();
+  const { userProfile } = useAuthStore();
 
   const fetchData = async () => {
     if (!incidentId) {
@@ -195,6 +197,10 @@ const { connectionStatus } = useIncidentRealtime({
       </div>
     );
   }
+  // PHASE 8.2 BUGFIX: deteksi apakah viewer ini adalah korban (pelapor) sendiri.
+  // Kalau ya, titik biru ("Lokasi Anda") disembunyikan supaya tidak menumpuk
+  // dengan titik merah korban di lokasi yang sama (menghindari kebingungan UX).
+  const isViewerKorban = userProfile?.id === incident.reporter.id;
 
   const respondingNeighborsCount = incident.responders.filter(r => r.response_type === 'going').length;
   const responderLocations = incident.responders
@@ -237,7 +243,7 @@ const { connectionStatus } = useIncidentRealtime({
           />
           
           <GpsWarningBanner status={gpsStatus} error={gpsError} onRetry={requestPermission} />
-          <IncidentMap className="h-[320px]" korbanLocation={incident.location} ownLocation={ownLocation} responders={responderLocations} />
+          <IncidentMap className="h-[320px]" korbanLocation={incident.location} ownLocation={isViewerKorban ? null : ownLocation} responders={responderLocations} isViewerKorban={isViewerKorban} />
           <div className="rounded-2xl bg-white shadow-sm p-4 space-y-3">
             <div className="flex items-start gap-3"><MapPin size={20} className="text-slate-400 mt-0.5 flex-shrink-0" /><p className="text-sm text-slate-700">{incident.human_address || `Koordinat: ${incident.location.lat.toFixed(4)}, ${incident.location.lng.toFixed(4)}`}</p></div>
             <div className="flex items-center gap-3"><User size={20} className="text-slate-400 flex-shrink-0" /><p className="text-sm text-slate-700 font-medium">{incident.reporter.full_name}<RoleBadge role={incident.reporter.role} isStranger={incident.reporter.is_stranger} /></p></div>

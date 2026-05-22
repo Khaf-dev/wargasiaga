@@ -17,10 +17,12 @@ interface IncidentMapProps {
     location: { lat: number; lng: number };
   }>;
   className?: string;
+  // PHASE 8.2: true jika viewer adalah korban sendiri (ubah title marker merah)
+  isViewerKorban?: boolean;
 }
 
 // Komponen inner yang hanya dirender setelah Google Maps API siap
-const GoogleMapInner = ({ korbanLocation, ownLocation, responders }: IncidentMapProps) => {
+const GoogleMapInner = ({ korbanLocation, ownLocation, responders, isViewerKorban }: IncidentMapProps) => {
   const ref = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
@@ -103,7 +105,8 @@ const GoogleMapInner = ({ korbanLocation, ownLocation, responders }: IncidentMap
     const korbanMarker = new google.maps.Marker({
       position: korbanLocation,
       map: mapInstance.current,
-      title: "📍 Lokasi Korban",
+      // PHASE 8.2: kalau viewer adalah korban sendiri, perjelas "Lokasi Anda (Korban)"
+      title: isViewerKorban ? "📍 Lokasi Anda (Korban)" : "📍 Lokasi Korban",
       zIndex: 1000,
       icon: {
         path: google.maps.SymbolPath.CIRCLE,
@@ -166,7 +169,7 @@ const GoogleMapInner = ({ korbanLocation, ownLocation, responders }: IncidentMap
       mapInstance.current.setZoom(16);
     }
 
-  }, [korbanLocation, ownLocation, responders]);
+  }, [korbanLocation, ownLocation, responders, isViewerKorban]);
 
   return <div ref={ref} id="map-container" className="h-full w-full" />;
 };
