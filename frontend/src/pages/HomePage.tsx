@@ -1,7 +1,7 @@
 // frontend/src/pages/HomePage.tsx
 import { motion } from 'framer-motion';
 import { useAuthStore } from '@/store/authStore';
-import { LogOut } from 'lucide-react';
+import { LogOut, MapPin, Users, UserCircle, ChevronRight } from 'lucide-react';
 import type { UserRole } from '@/types/user';
 import { PanicButton } from '@/components/panic/PanicButton';
 import { useGpsTracking } from '@/hooks/useGpsTracking';
@@ -24,6 +24,35 @@ const RoleBadge = ({ role }: { role: UserRole }) => {
     </span>
   );
 };
+
+// Phase 8.6: Card menu navigasi (Section 4 — card, navy, Framer Motion)
+const MenuCard = ({
+  icon,
+  title,
+  subtitle,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  onClick: () => void;
+}) => (
+  <motion.button
+    onClick={onClick}
+    whileTap={{ scale: 0.97 }}
+    whileHover={{ scale: 1.01 }}
+    className="w-full flex items-center gap-3 p-4 bg-white rounded-2xl shadow-sm border border-slate-100 text-left"
+  >
+    <div className="w-10 h-10 rounded-xl bg-navy-900/10 flex items-center justify-center text-navy-900 flex-shrink-0">
+      {icon}
+    </div>
+    <div className="flex-1 min-w-0">
+      <h3 className="font-semibold text-slate-800 text-sm">{title}</h3>
+      <p className="text-xs text-slate-500 truncate">{subtitle}</p>
+    </div>
+    <ChevronRight size={18} className="text-slate-300 flex-shrink-0" />
+  </motion.button>
+);
 
 export default function HomePage() {
   const { userProfile, logout } = useAuthStore();
@@ -109,8 +138,47 @@ export default function HomePage() {
         )}
 
         {/* FIX UI: Menghilangkan div min-h-screen yang redundant di dalam card */}
-        <div className="p-4 mb-6">
+        <div className="p-4 mb-4">
             <p className="text-sm text-gray-500">Tekan tombol di bawah saat keadaan darurat.</p>
+        </div>
+
+        {/* Phase 8.6: Menu role-based */}
+        <div className="space-y-2.5 mb-6">
+          {/* Semua role: lengkapi data diri */}
+          <MenuCard
+            icon={<UserCircle size={20} />}
+            title="Data Diri"
+            subtitle="Lengkapi atau perbarui data dirimu"
+            onClick={() => navigate('/data-diri')}
+          />
+
+          {/* RT/RW: kelola wilayah + lihat warga */}
+          {(userProfile?.role === 'RT' || userProfile?.role === 'RW') && (
+            <>
+              <MenuCard
+                icon={<MapPin size={20} />}
+                title="Kelola Wilayah"
+                subtitle={`Tentukan batas wilayah ${userProfile.role}`}
+                onClick={() => navigate('/daftar-wilayah')}
+              />
+              <MenuCard
+                icon={<Users size={20} />}
+                title="Daftar Warga"
+                subtitle="Lihat warga terdaftar di wilayahmu"
+                onClick={() => navigate('/daftar-warga')}
+              />
+            </>
+          )}
+
+          {/* RW only: daftar RT */}
+          {userProfile?.role === 'RW' && (
+            <MenuCard
+              icon={<Users size={20} />}
+              title="Daftar RT"
+              subtitle="Lihat semua RT di wilayah RW-mu"
+              onClick={() => navigate('/daftar-rt')}
+            />
+          )}
         </div>
 
         <motion.button

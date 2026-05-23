@@ -12,6 +12,9 @@ import HomePage from '@/pages/HomePage';
 import OnboardingPage from '@/pages/OnboardingPage';
 import IncidentMapPage from '@/pages/IncidentMapPage';
 import DataDiriPage from '@/pages/DataDiriPage';
+import DaftarWilayahPage from '@/pages/DaftarWilayahPage';
+import DaftarWargaPage from '@/pages/DaftarWargaPage';
+import DaftarRTPage from '@/pages/DaftarRTPage';
 
 // Import persistent components
 import { IncomingPanicSheet } from '@/components/panic/IncomingPanicSheet';
@@ -70,6 +73,32 @@ function App() {
           element={
             <ProtectedRoute>
               <DataDiriPage />
+            </ProtectedRoute>
+          }
+        />
+        {/* Phase 8.5: Pendaftaran wilayah RT/RW (geofencing) */}
+        <Route
+          path="/daftar-wilayah"
+          element={
+            <ProtectedRoute>
+              <DaftarWilayahPage />
+            </ProtectedRoute>
+          }
+        />
+        {/* Phase 8.6: Dashboard role-based */}
+        <Route
+          path="/daftar-warga"
+          element={
+            <ProtectedRoute>
+              <DaftarWargaPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/daftar-rt"
+          element={
+            <ProtectedRoute>
+              <DaftarRTPage />
             </ProtectedRoute>
           }
         />

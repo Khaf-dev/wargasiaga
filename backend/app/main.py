@@ -6,6 +6,7 @@ from app.core.config import settings
 from app.core.firebase import initialize_firebase_app
 from app.api import users as users_api
 from app.api import incidents as incidents_api
+from app.api import zones as zones_api
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -34,3 +35,4 @@ async def health_check():
 
 app.include_router(users_api.router, prefix="/api/v1")
 app.include_router(incidents_api.router, prefix="/api/v1")
+app.include_router(zones_api.router, prefix="/api/v1")
